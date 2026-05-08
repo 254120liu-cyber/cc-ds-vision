@@ -226,6 +226,17 @@ powershell -Command "& {
     Write-Host '  settings.json 已更新'
 }"
 
+:: ── Copy .mcp.json to Desktop & Home for project-level MCP discovery ──
+echo   [配置] 部署项目级 MCP 配置...
+if not exist "%USERPROFILE%\Desktop\.mcp.json" (
+    copy /Y "%PLUGIN_DIR%.mcp.json" "%USERPROFILE%\Desktop\.mcp.json" >nul
+    echo   .mcp.json 已复制至桌面
+)
+if not exist "%USERPROFILE%\.mcp.json" (
+    copy /Y "%PLUGIN_DIR%.mcp.json" "%USERPROFILE%\.mcp.json" >nul
+    echo   .mcp.json 已复制至用户主目录
+)
+
 :: ── CLAUDE.md auto-config ──
 echo   [配置] 写入图像理解自动调用规则...
 set CLAUDE_MD=%USERPROFILE%\.claude\CLAUDE.md
