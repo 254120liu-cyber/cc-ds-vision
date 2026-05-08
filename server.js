@@ -126,6 +126,9 @@ function stopLlamaServer() {
 }
 
 async function describeImage(path, prompt, options = {}) {
+  if (!llamaReady) {
+    throw new Error("Vision model is still loading. Please wait a moment and try again.");
+  }
   const dataUrl = `data:${mimeType(path)};base64,${toBase64(path)}`;
   const defaultPrompt = "请详细描述这张图片的内容。如果是UI截图，请描述界面布局和功能；如果是图表，请提取数据；如果有文字，请完整提取所有文字。";
   const finalPrompt = prompt || defaultPrompt;
@@ -174,7 +177,12 @@ async function describeImage(path, prompt, options = {}) {
   }
 }
 
-await startLlamaServer();
+let llamaReady = false;
+
+// ── CRITICAL: Connect MCP FIRST, then start llama-server in background ──
+// Claude Code has a short timeout for MCP initialization handshake.
+// If we block on llama-server startup before connecting, Claude Code times out
+// and never registers the describe_image tool.
 
 const server = new Server(
   { name: "cc-ds-vision", version: "1.0.0" },
@@ -219,5 +227,15 @@ process.on("exit", stopLlamaServer);
 process.on("SIGINT", () => { stopLlamaServer(); process.exit(); });
 process.on("SIGTERM", () => { stopLlamaServer(); process.exit(); });
 
+// Step 1: Connect MCP transport IMMEDIATELY — Claude Code needs this within seconds
 const transport = new StdioServerTransport();
 await server.connect(transport);
+console.error("[cc-ds-vision] MCP server connected, tool registered");
+
+// Step 2: Start llama-server in background (after MCP is connected)
+startLlamaServer().then(() => {
+  llamaReady = true;
+  console.error("[cc-ds-vision] Vision model ready for requests");
+}).catch(e => {
+  console.error("[cc-ds-vision] Failed to start llama-server:", e.message);
+});
