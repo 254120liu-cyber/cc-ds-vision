@@ -27,14 +27,20 @@ const MMPROJ_PATH = resolve(PLUGIN_DIR, process.env.LLAMA_MMPROJ_PATH || "./mode
 let llamaProcess = null;
 
 const WARMUP_IMG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
-const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "bmp", "gif"];
 const EXTRACTION_RE = /提取|文字|OCR|识别|列出|所有|extract/i;
 
 const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
 
 function toBase64(filePath) {
   const abs = resolve(filePath);
-  const size = statSync(abs).size;
+  let size;
+  try {
+    size = statSync(abs).size;
+  } catch (e) {
+    if (e.code === "ENOENT") throw new Error(`File not found: ${abs}`);
+    throw e;
+  }
+  if (size === 0) throw new Error("Image file is empty");
   if (size > MAX_IMAGE_BYTES) {
     throw new Error(`Image too large (${(size / 1024 / 1024).toFixed(1)}MB). Max 50MB.`);
   }
@@ -56,29 +62,33 @@ async function startLlamaServer() {
   const alive = await checkServer();
   if (alive) {
     console.error("[CC-DS] llama-server already running on port 8081");
-    await warmupVisionEncoder();
+    llamaReady = true;
+    warmupVisionEncoder();
     return;
   }
 
   const llamaExe = `${LLAMA_DIR}/llama-server.exe`;
   if (!existsSync(llamaExe)) {
-    console.error("[CC-DS] llama.cpp not found at:", LLAMA_DIR);
-    console.error("[CC-DS] Please run setup.bat first, or download from:");
-    console.error("[CC-DS]   https://github.com/ggml-org/llama.cpp/releases/latest");
-    console.error("[CC-DS]   (download llama-b*-bin-win-cuda-12.4-x64.zip + cudart-llama-bin-win-cuda-12.4-x64.zip)");
-    return;
+    throw new Error(
+      `llama.cpp not found at: ${LLAMA_DIR}\n` +
+      "Please run setup.bat first, or download from:\n" +
+      "  https://github.com/ggml-org/llama.cpp/releases/latest\n" +
+      "  (download llama-b*-bin-win-cuda-12.4-x64.zip + cudart-llama-bin-win-cuda-12.4-x64.zip)"
+    );
   }
   if (!existsSync(MODEL_PATH)) {
-    console.error("[CC-DS] Model not found at:", MODEL_PATH);
-    console.error("[CC-DS] Please download from ModelScope:");
-    console.error("[CC-DS]   https://modelscope.cn/models/bartowski/Qwen2-VL-7B-Instruct-GGUF");
-    console.error("[CC-DS] Files needed: Qwen2-VL-7B-Instruct-Q4_K_M.gguf + mmproj-Qwen2-VL-7B-Instruct-f32.gguf");
-    return;
+    throw new Error(
+      `Model not found at: ${MODEL_PATH}\n` +
+      "Please download from ModelScope:\n" +
+      "  https://modelscope.cn/models/bartowski/Qwen2-VL-7B-Instruct-GGUF\n" +
+      "Files needed: Qwen2-VL-7B-Instruct-Q4_K_M.gguf + mmproj-Qwen2-VL-7B-Instruct-f32.gguf"
+    );
   }
   if (!existsSync(MMPROJ_PATH)) {
-    console.error("[CC-DS] mmproj not found at:", MMPROJ_PATH);
-    console.error("[CC-DS] Please also download mmproj-Qwen2-VL-7B-Instruct-f32.gguf from ModelScope");
-    return;
+    throw new Error(
+      `mmproj not found at: ${MMPROJ_PATH}\n` +
+      "Please also download mmproj-Qwen2-VL-7B-Instruct-f32.gguf from ModelScope"
+    );
   }
 
   console.error("[CC-DS] Starting llama-server...");
@@ -88,16 +98,27 @@ async function startLlamaServer() {
      "-ngl", "99", "--ctx-size", "8192", "--no-warmup", "-tb", "20", "--prio", "2"],
     { stdio: "ignore", detached: false }
   );
+  llamaProcess.on("exit", (code) => {
+    console.error(`[CC-DS] llama-server exited (code ${code})`);
+    llamaReady = false;
+    llamaProcess = null;
+  });
+  llamaProcess.on("error", (err) => {
+    console.error(`[CC-DS] llama-server error:`, err.message);
+    llamaReady = false;
+    llamaProcess = null;
+  });
 
   for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 2000));
     if (await checkServer()) {
       console.error("[CC-DS] llama-server started successfully");
-      await warmupVisionEncoder();
+      llamaReady = true;
+      warmupVisionEncoder();
       return;
     }
   }
-  console.error("[CC-DS] Warning: llama-server may still be loading (large model)");
+  throw new Error("llama-server did not start within 120s");
 }
 
 async function warmupVisionEncoder() {
@@ -125,17 +146,14 @@ async function warmupVisionEncoder() {
 function stopLlamaServer() {
   if (llamaProcess) {
     console.error("[CC-DS] Stopping llama-server...");
-    try {
-      llamaProcess.kill("SIGTERM");
-    } catch {
-      // fallback for Windows
-      try { llamaProcess.kill(); } catch {}
-    }
+    try { llamaProcess.kill("SIGTERM"); }
+    catch { try { llamaProcess.kill(); } catch (e) { console.error("[CC-DS] Kill failed:", e.message); } }
     llamaProcess = null;
   }
 }
 
 async function describeImage(path, prompt, options = {}) {
+  if (!path || typeof path !== "string") throw new Error("Missing or invalid image path");
   if (!llamaReady) {
     throw new Error("Vision model is still loading. Please wait a moment and try again.");
   }
@@ -202,7 +220,7 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [{
     name: "describe_image",
-    description: "【MUST USE for any image task】Analyze and understand an image using local Qwen2-VL-7B vision model. Supports PNG/JPG/WEBP/BMP. Strong Chinese OCR and text extraction. Zero cost, fully offline. You MUST call this tool whenever: (1) the user mentions or references an image file, (2) asks about content of a picture/screenshot/photo, (3) needs to extract text from an image, (4) wants to analyze or work with any image. This tool IS your vision capability — NEVER say you cannot read or see images, because you CAN by invoking this tool. Always call it FIRST before responding to any image-related request.",
+    description: "Analyze and understand an image using local Qwen2-VL-7B vision model. Supports PNG/JPG/WEBP/BMP. Strong Chinese OCR, accurate descriptions. Automatically uses lower temperature (0.1) for text extraction and higher (0.3) for general descriptions.",
     inputSchema: {
       type: "object",
       properties: {
@@ -244,7 +262,6 @@ console.error("[cc-ds-vision] MCP server connected, tool registered");
 
 // Step 2: Start llama-server in background (after MCP is connected)
 startLlamaServer().then(() => {
-  llamaReady = true;
   console.error("[cc-ds-vision] Vision model ready for requests");
 }).catch(e => {
   console.error("[cc-ds-vision] Failed to start llama-server:", e.message);
