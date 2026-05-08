@@ -1,0 +1,14 @@
+{
+  "cc-ds-vision": {
+    "type": "stdio",
+    "command": "node",
+    "args": ["{{PLUGIN_DIR}}\\server.js"],
+    "env": {
+      "LLAMA_HOST": "http://127.0.0.1:8081",
+      "LLAMA_VISION_MODEL": "qwen2-vl",
+      "LLAMA_DIR": "{{PLUGIN_DIR}}\\llama.cpp",
+      "LLAMA_MODEL_PATH": "{{PLUGIN_DIR}}\\models\\Qwen2-VL-7B-Instruct-Q4_K_M.gguf",
+      "LLAMA_MMPROJ_PATH": "{{PLUGIN_DIR}}\\models\\mmproj-Qwen2-VL-7B-Instruct-f32.gguf"
+    }
+  }
+}

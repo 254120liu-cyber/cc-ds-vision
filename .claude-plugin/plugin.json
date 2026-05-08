@@ -1,0 +1,9 @@
+{
+  "name": "cc-ds-vision",
+  "description": "CC-DS Vision：本地视觉模型插件，让 DeepSeek 用户的 Claude Code 具备图像理解能力。基于 Qwen2-VL-7B + llama.cpp，中文 OCR 强，精度高，本地运行零成本。",
+  "author": {
+    "name": "CC-DS Vision Team"
+  },
+  "version": "1.0.0",
+  "homepage": "https://github.com/your-org/cc-ds-vision"
+}

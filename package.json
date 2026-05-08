@@ -1,0 +1,10 @@
+{
+  "name": "cc-ds-vision",
+  "version": "1.0.0",
+  "description": "CC-DS Vision：本地视觉模型 MCP 插件，让 DeepSeek 用户的 Claude Code 具备图像理解能力。",
+  "type": "module",
+  "main": "server.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
