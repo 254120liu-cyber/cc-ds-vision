@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // CC-DS Vision auto-detection hook for Claude Code
 // Detects when user mentions images and injects context to trigger describe_image
-const { readdirSync, statSync } = require("fs");
-const { resolve } = require("path");
+const { readdirSync } = require("fs");
 
 async function main() {
   let input = "";
@@ -45,7 +44,6 @@ async function main() {
   }
 
   if (!hasImageKeyword && !hasImages) {
-    // Check parent directory too
     process.exit(0);
   }
 

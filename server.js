@@ -120,7 +120,12 @@ async function warmupVisionEncoder() {
 function stopLlamaServer() {
   if (llamaProcess) {
     console.error("[CC-DS] Stopping llama-server...");
-    llamaProcess.kill("SIGTERM");
+    try {
+      llamaProcess.kill("SIGTERM");
+    } catch {
+      // fallback for Windows
+      try { llamaProcess.kill(); } catch {}
+    }
     llamaProcess = null;
   }
 }
