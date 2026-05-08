@@ -195,12 +195,19 @@ powershell -Command "& {
         }
     }
     $new = $template | ConvertFrom-Json
-    foreach ($p in $new.PSObject.Properties) {
+    foreach ($p in $new.mcpServers.PSObject.Properties) {
         $merged[$p.Name] = $p.Value
     }
     $output = @{ mcpServers = $merged } | ConvertTo-Json -Depth 10
     $output | Set-Content $userMcp -Encoding UTF8
     Write-Host '  MCP 配置已写入 ~/.claude/.mcp.json'
+
+	    # Also deploy to Desktop and Home
+	    $desktopMcp = [Environment]::GetFolderPath('Desktop') + '\.mcp.json'
+	    $homeMcp = [Environment]::GetFolderPath('UserProfile') + '\.mcp.json'
+	    if (-not (Test-Path $desktopMcp)) { $output | Set-Content $desktopMcp -Encoding UTF8 }
+	    if (-not (Test-Path $homeMcp)) { $output | Set-Content $homeMcp -Encoding UTF8 }
+	    Write-Host '  .mcp.json 已部署至桌面和主目录'
 }"
 if %errorlevel% neq 0 (
     echo   [警告] 自动配置 MCP 失败
@@ -225,17 +232,6 @@ powershell -Command "& {
     $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
     Write-Host '  settings.json 已更新'
 }"
-
-:: ── Copy .mcp.json to Desktop & Home for project-level MCP discovery ──
-echo   [配置] 部署项目级 MCP 配置...
-if not exist "%USERPROFILE%\Desktop\.mcp.json" (
-    copy /Y "%PLUGIN_DIR%.mcp.json" "%USERPROFILE%\Desktop\.mcp.json" >nul
-    echo   .mcp.json 已复制至桌面
-)
-if not exist "%USERPROFILE%\.mcp.json" (
-    copy /Y "%PLUGIN_DIR%.mcp.json" "%USERPROFILE%\.mcp.json" >nul
-    echo   .mcp.json 已复制至用户主目录
-)
 
 :: ── CLAUDE.md auto-config ──
 echo   [配置] 写入图像理解自动调用规则...
