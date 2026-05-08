@@ -65,4 +65,4 @@ async function main() {
   console.log(JSON.stringify({ additionalContext: context }));
 }
 
-main().catch(() => process.exit(0));
+main().catch(e => { console.error("[vision-hook]", e.message); process.exit(0); });

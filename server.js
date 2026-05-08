@@ -26,13 +26,12 @@ const MMPROJ_PATH = resolve(PLUGIN_DIR, process.env.LLAMA_MMPROJ_PATH || "./mode
 
 let llamaProcess = null;
 
-// Minimal 1x1 PNG for vision encoder warmup
 const WARMUP_IMG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
+const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "bmp", "gif"];
+const EXTRACTION_RE = /提取|文字|OCR|识别|列出|所有|extract/i;
 
 function toBase64(filePath) {
-  const absPath = resolve(filePath);
-  if (!existsSync(absPath)) throw new Error(`File not found: ${absPath}`);
-  return readFileSync(absPath).toString("base64");
+  return readFileSync(resolve(filePath)).toString("base64");
 }
 
 function mimeType(filePath) {
@@ -54,7 +53,6 @@ async function startLlamaServer() {
     return;
   }
 
-  // Check prerequisites
   const llamaExe = `${LLAMA_DIR}/llama-server.exe`;
   if (!existsSync(llamaExe)) {
     console.error("[CC-DS] llama.cpp not found at:", LLAMA_DIR);
@@ -137,7 +135,7 @@ async function describeImage(path, prompt, options = {}) {
   const dataUrl = `data:${mimeType(path)};base64,${toBase64(path)}`;
   const defaultPrompt = "请详细描述这张图片的内容。如果是UI截图，请描述界面布局和功能；如果是图表，请提取数据；如果有文字，请完整提取所有文字。";
   const finalPrompt = prompt || defaultPrompt;
-  const isExtraction = /提取|文字|OCR|识别|列出|所有|extract/i.test(finalPrompt);
+  const isExtraction = EXTRACTION_RE.test(finalPrompt);
 
   const body = {
     model: LLAMA_MODEL,
