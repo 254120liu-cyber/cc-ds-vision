@@ -207,6 +207,25 @@ if %errorlevel% neq 0 (
     echo   请手动将 .mcp.json 中的内容合并到 ~/.claude/.mcp.json
 )
 
+:: ── Auto-approve MCP server in settings.json ──
+echo   [配置] 自动授权 MCP 服务器...
+powershell -Command "& {
+    $settingsPath = [Environment]::GetFolderPath('UserProfile') + '\.claude\settings.json'
+    $settings = @{}
+    if (Test-Path $settingsPath) {
+        $settings = Get-Content $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
+    if (-not $settings.enabledMcpjsonServers) {
+        $settings.enabledMcpjsonServers = @()
+    }
+    if ($settings.enabledMcpjsonServers -notcontains 'cc-ds-vision') {
+        $settings.enabledMcpjsonServers += 'cc-ds-vision'
+    }
+    $settings.enableAllProjectMcpServers = $true
+    $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
+    Write-Host '  settings.json 已更新'
+}"
+
 :: ── CLAUDE.md auto-config ──
 echo   [配置] 写入图像理解自动调用规则...
 set CLAUDE_MD=%USERPROFILE%\.claude\CLAUDE.md
