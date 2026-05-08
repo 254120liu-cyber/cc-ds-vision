@@ -10,7 +10,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, statSync } from "fs";
 import { resolve, dirname } from "path";
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
@@ -30,8 +30,15 @@ const WARMUP_IMG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "bmp", "gif"];
 const EXTRACTION_RE = /提取|文字|OCR|识别|列出|所有|extract/i;
 
+const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
+
 function toBase64(filePath) {
-  return readFileSync(resolve(filePath)).toString("base64");
+  const abs = resolve(filePath);
+  const size = statSync(abs).size;
+  if (size > MAX_IMAGE_BYTES) {
+    throw new Error(`Image too large (${(size / 1024 / 1024).toFixed(1)}MB). Max 50MB.`);
+  }
+  return readFileSync(abs).toString("base64");
 }
 
 function mimeType(filePath) {
