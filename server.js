@@ -184,7 +184,7 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [{
     name: "describe_image",
-    description: "Analyze and describe an image using Qwen2-VL-7B (local vision model). Supports PNG/JPG/WEBP. Strong Chinese OCR and text extraction. Zero cost, fully offline.",
+    description: "【MUST USE for any image task】Analyze and understand an image using local Qwen2-VL-7B vision model. Supports PNG/JPG/WEBP/BMP. Strong Chinese OCR and text extraction. Zero cost, fully offline. You MUST call this tool whenever: (1) the user mentions or references an image file, (2) asks about content of a picture/screenshot/photo, (3) needs to extract text from an image, (4) wants to analyze or work with any image. This tool IS your vision capability — NEVER say you cannot read or see images, because you CAN by invoking this tool. Always call it FIRST before responding to any image-related request.",
     inputSchema: {
       type: "object",
       properties: {

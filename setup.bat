@@ -207,6 +207,47 @@ if %errorlevel% neq 0 (
     echo   请手动将 .mcp.json 中的内容合并到 ~/.claude/.mcp.json
 )
 
+:: ── CLAUDE.md auto-config ──
+echo   [配置] 写入图像理解自动调用规则...
+set CLAUDE_MD=%USERPROFILE%\.claude\CLAUDE.md
+if not exist "%USERPROFILE%\.claude" mkdir "%USERPROFILE%\.claude"
+if exist "%CLAUDE_MD%" (
+    echo   [跳过] CLAUDE.md 已存在，追加内容...
+    echo. >> "%CLAUDE_MD%"
+    echo ## 图像理解能力 · Image Understanding >> "%CLAUDE_MD%"
+    echo - 凡涉及图片，必须先调用 `describe_image` 工具 >> "%CLAUDE_MD%"
+    echo - 永远不要说"我无法读取图片"——你拥有 `describe_image` 工具 >> "%CLAUDE_MD%"
+    echo - 支持 PNG/JPG/WEBP/BMP，中文 OCR 精准 >> "%CLAUDE_MD%"
+) else (
+    powershell -Command "& {
+        $content = @'
+# 图像理解能力 - Image Understanding
+
+**核心规则：凡涉及图片，必须先调用 ` + \"`describe_image`\" + @" 工具。**
+
+## 自动调用时机
+当用户消息中出现以下任一情况时，你必须先调用 ` + \"`describe_image`\" + @" 工具理解图片内容，再执行后续操作：
+
+1. 用户提到某个图片文件路径（如 \"这张图片\"、\"C:\\xxx\\photo.png\"）
+2. 用户要求分析、描述、理解某张图片的内容
+3. 用户要求从图片中提取文字（OCR）
+4. 用户要求基于某张图片执行任何操作（如 \"根据这张图出题\"、\"分析这个截图\"）
+5. 用户在目录中放入图片并提到 \"图片\"、\"截图\"、\"照片\" 等关键词
+
+## 调用方式
+describe_image(path=\"图片绝对路径\", prompt=\"可选：自定义分析提示词\")
+
+## 重要原则
+- **永远不要说\"我无法读取图片\"或\"我看不到图片\"** — 你拥有 describe_image 工具，这就是你的视觉能力。
+- 如果目录下有多个图片，逐一调用 describe_image 理解每一张。
+- 理解完图片内容后，再根据用户需求继续执行任务。
+- 对于中文图片，OCR 文字提取精准，完整提取所有文字内容。
+'@
+        [System.IO.File]::WriteAllText('%CLAUDE_MD%', $content, [System.Text.Encoding]::UTF8)
+    }"
+)
+echo   [完成] CLAUDE.md 已配置
+
 echo.
 echo   ╔══════════════════════════════════════════╗
 echo   ║        安装完成！CC-DS Vision 已就绪       ║
